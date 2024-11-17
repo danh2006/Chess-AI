@@ -30,15 +30,67 @@ public:
         bKnight(8, 3); bKnight(8, 6);
     }
 
-    void simulation()
+    // cuu chua kieu gi day
+    auto& select(int piece_value){
+        switch(piece_value):
+            case Queen:  return turn ? &wQueen  : &bQueen;
+            case Rook:   return turn ? &wRook   : &bRook;
+            case Bishop: return turn ? &wBishop : &bBishop;
+            case Knight: return turn ? &wKnight : &bKnight;
+            case Pawn:   return turn ? &wPawn   : &bPawn;
+            // case King      
+    }
+
+    void simulation(std::vector<Point>& command){
+        for(int i = 0; i < command.size(); i += 2){
+            auto& src = turn ;
+            auto& dst = ;
+            assert(src != EMPTY && dst == EMPTY);
+            src = dst;
+            dst = EMPTY;
+            turn ^= 1;
+        }
+    }
     
+    auto check_move(int piece_value, std::vector<Point>& point){
+        auto& pieces = select(piece_value);
+        // piece we need to check
+        auto piece = *find(pieces.begin(), pieces.end(), point); 
+        return piece.move == false; 
+    }
+    auto can_kingside_castle(auto&& board, auto& row){ // kiem tra xem co the nhap thanh gan khong
+        for(int i = 1; i <= 2; ++i){
+            if(WhiteBoard[GetIdx(row, 7 - i)] || BlackBoard[GetIdx(row, 7 - i)])
+                return false;
+        }
+        // kiem tra xem cac quan co nay da di chuyen chua
+        return board[GetIdx(row, 7)] == Rook && board[GetIdx(row, 4)] == King &&
+               (*std::ranges::find(Rook, Point(row, 7))).move == false &&
+               (*std::ranges::find(King, Point(row, 4))).move == false;
+    }
+    auto can_queenside_castle(auto&& board, auto& row){ // kiem tra xem co the nhap thanh xa khong
+        for(int i = 1; i <= 3; ++i){
+            if(WhiteBoard[GetIdx(row, i)] || BlackBoard[GetIdx(row, i)])
+                return false;
+        }
+        // kiem tra xem cac quan co nay da di chuyen chua
+        return board[GetIdx(row, 0)] == Rook && board[GetIdx(row, 4)] == King &&
+               (*std::ranges::find(Rook, Point(row, 0))).move == false &&
+               (*std::ranges::find(King, Point(row, 4))).move == false;
+    }
+
+    std::vector<Point> castle(){
+        auto& board = turn ? WhiteBoard : BlackBoard;
+        auto  row   = turn ? 8 : 1;  
+        if(can_kingside_castle(board, row))
+
+        if(can_queenside_castle(board, row))
+
+    }
+
     void display(){
         std::vector<std::string> printWindow(64, "♢ ");
         
-        auto GetIdx = [&] (Point p){
-            return p.x * 8 + y;
-        };
-
         // King
         printWindow[GetIdx(wKing)] = printWindow[GetIdx(bKing)] = "♚";
         
@@ -65,7 +117,7 @@ public:
             printWindow(GetIdx(knight)) = "♞";
         for(auto& knight : bKnight)
             printWindow(GetIdx(knight)) = "♞";
-        
+           
         // Pawn
         for(auto& pawn : wPawn)
             printWindow(GetIdx(pawn)) = "♟";
