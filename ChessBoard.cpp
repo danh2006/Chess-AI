@@ -17,11 +17,12 @@ bool debug_flag = false;
 bool error_flag = true;
 
 
+
 #define dbg(...) std::cout << "LINE(" << __LINE__ << ") : [" << #__VA_ARGS__ << "] = [", debug(__VA_ARGS__)
 #define ifdbg if(debug_flag) 
 
 template<class T>
-auto mes_error(T&& t){
+void mes_error(T&& t){
     if(!error_flag) 
         return;
     std::cout << "Not satisfy the condition: " << t;
@@ -49,19 +50,19 @@ struct Point{
 
 
 auto GetIdx(int x, int y){
-    return (x << 3) + y; 
+    return (x * 8) + y; 
 }
 auto GetIdx(const Point& p){ return GetIdx(p.x, p.y); }
 
 
 const int INF = 10000000;
 
-std::string encode(const int pos){
-    int x = pos / 8, y = pos % 8;
-    x = 7 - x, y = 7 - y;
+std::string encode(int position){
+    int x = position / 8, y = position % 8;
+    x = 7 - x;
     std::string ret_str;
-    ret_str += char(x - 1 + 'a');
-    ret_str += char(y - 1 + '0');
+    ret_str += char(y + 'a');
+    ret_str += char(x + 1 + '0');
     return ret_str;
 }
 
@@ -113,11 +114,12 @@ std::vector<Point> piece_move(T&& board, H&& direct, Point src_pos, int limit_ti
     auto tmp = src_pos;
     for(int i = 0; i < std::size(direct); ++i) { 
       Point cur_pos = src_pos + direct[i];
+      assert(tmp == src_pos && src_pos != cur_pos);
       for(int cnt_times = 0; cnt_times < limit_times; ++cnt_times) {
           if(!is_in_board(cur_pos) || is_same_color(board, src_pos, cur_pos)) break;
           next_pos.push_back(cur_pos);
-          cur_pos += direct[i];
           if(board[GetIdx(cur_pos)] != 0) break;
+          cur_pos += direct[i];
       }
     }
     return next_pos;
@@ -165,18 +167,21 @@ std::vector<Point> pawn_move(T&& board, Point position){  // side = 1 if white e
 
     if(is_in_board(nxt_pos) && board[GetIdx(nxt_pos)] == 0)
         next_pos.push_back(nxt_pos);
+    if(position.x == (side == White ? 6 : 1) &&
+        is_in_board(nxt_pos + Point(side == White ? -1 : 1, 0)) && board[GetIdx(nxt_pos + Point(side == White ? -1 : 1, 0))] == 0)
+        next_pos.push_back(nxt_pos + Point(side == White ? -1 : 1, 0));
 
     auto [x, y] = position;
     if(side == Black){
-        if(x > 0 && y > 0 && board[GetIdx(x - 1, y - 1)] != 0)
+        if(x > 0 && y > 0 && board[GetIdx(x - 1, y - 1)] > 0)
             next_pos.push_back(Point(x - 1, y - 1));
-        if(x < 7 && y > 0 && board[GetIdx(x + 1, y - 1)] != 0)
+        if(x < 7 && y > 0 && board[GetIdx(x + 1, y - 1)] > 0)
             next_pos.push_back(Point(x + 1, y - 1));
     }
     else{
-        if(x > 0 && y < 7 && board[GetIdx(x - 1, y + 1)] != 0)
+        if(x > 0 && y < 7 && board[GetIdx(x - 1, y + 1)] < 0)
             next_pos.push_back(Point(x - 1, y + 1));
-        if(x < 7 && y < 7 && board[GetIdx(x + 1, y + 1)] != 0)
+        if(x < 7 && y < 7 && board[GetIdx(x + 1, y + 1)] < 0)
             next_pos.push_back(Point(x + 1, y + 1));     
     }  
 
@@ -251,6 +256,16 @@ namespace Evaluate{ // Evaluate by position
         20, 30, 10,  0,  0, 10, 30, 20
     };
     const int empty[64] = {0};
+
+    // const int MVV_LAA = {  
+    //    [0, 0, 0, 0, 0, 0, 0],       // victim K, attacker K, Q, R, B, N, P, None
+    // [50, 51, 52, 53, 54, 55, 0], // victim Q, attacker K, Q, R, B, N, P, None
+    // [40, 41, 42, 43, 44, 45, 0], // victim R, attacker K, Q, R, B, N, P, None
+    // [30, 31, 32, 33, 34, 35, 0], // victim B, attacker K, Q, R, B, N, P, None
+    // [20, 21, 22, 23, 24, 25, 0], // victim N, attacker K, Q, R, B, N, P, None
+    // [10, 11, 12, 13, 14, 15, 0], // victim P, attacker K, Q, R, B, N, P, None
+    // [0, 0, 0, 0, 0, 0, 0],       // victim None, attacker K, Q, R, B, N, P, None
+// ];
 }
 
 
@@ -267,8 +282,6 @@ struct MoveInfo{
     std::string get_command(){
         auto start_pos = encode(from);
         auto end_pos   = encode(to);
-        // dbg(start_pos);
-        // dbg(end_pos);
         std::string command = start_pos + " " + end_pos;
         return command;
     }
@@ -325,6 +338,7 @@ public:
         last_move  = rhs.last_move;
         can_castle = rhs.can_castle;
         score      = rhs.score;
+        turn       = rhs.turn;
         return *this;
     }
 
@@ -350,9 +364,9 @@ public:
 
     std::vector<Point> get_all_move_pos(int position){
         const int absolute_piece_value = abs(board[position]);
-        const int row = position / 8, col = position % 8;
+        const int row = position / 8 , col = position % 8;
         const Point point(row, col);
-        // dbg(point, position);
+        
         switch(absolute_piece_value){
             case King:   return king_move(board, point);
             case Queen:  return queen_move(board, point);
@@ -363,6 +377,7 @@ public:
             default:
                 mes_error("There are no pieces in this position.");
         }
+        return std::vector<Point>{};
     }
 
     auto& get_evaluate_board(int position){
@@ -380,18 +395,19 @@ public:
     }
 
     auto change_piece_position(int from, int to){
-        auto&& evaluate_board_from_pos = get_evaluate_board(from);
-        auto&& evaluate_board_to_pos   = get_evaluate_board(to);
-        bool   base = is_white(from) ? 1 : -1;
+        // auto&& evaluate_board_from_pos = get_evaluate_board(from);
+        // auto&& evaluate_board_to_pos   = get_evaluate_board(to);
+        // int   base = is_white(from) ? 1 : -1;
         /*
             We imagine white and black have opposite points, 
             so if white is plus then black will be minus, and vice versa.
         */
-        score += base * (get_piece_score(evaluate_board_from_pos, to) - 
-                         get_piece_score(evaluate_board_from_pos, from));
+        // score += base * (get_piece_score(evaluate_board_from_pos, to) - 
+        //                  get_piece_score(evaluate_board_from_pos, from));
+        
 
         if(!is_empty(to)){
-            score -= board[to] + base * get_piece_score(evaluate_board_to_pos, to);
+            score -= board[to];//+ base * get_piece_score(evaluate_board_to_pos, to);
         }
 
         board[to]       = board[from];
@@ -414,7 +430,7 @@ public:
 
 
     auto promotion(int piece_value, int position){
-        bool side = board[position] > 0 ? 1 : -1;
+        int side = board[position] > 0 ? 1 : -1;
         board[piece_value] = side * piece_value;
         return board;
     }
@@ -433,7 +449,6 @@ public:
           default: 
             mes_error("don't support this piece");
         }
-        return "";
     }
 
     void display(){
@@ -467,11 +482,11 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
     int turn  = examine_board.turn;
     cnt_node++;
 
-    if(depth == 0 || score >= 10000){
-        move_info = examine_board.last_move;
-        alpha = score;
+    if(depth == 0 || examine_board.score >= 10000){
+        alpha = examine_board.score;
         return alpha;
     }
+  
 
     for(int from = 0; from < 64; ++from){
         if(examine_board.is_empty(from))
@@ -488,54 +503,83 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
           Board board = examine_board;
           int to = GetIdx(next);
           board.change_piece_position(from, to);
-          
+        
           int result_score = -alpha_beta(board, -beta, -alpha, depth - 1, next_move_info);
         
           if(result_score >= beta)
             return beta;
 
           if(result_score > alpha){
-            move_info = next_move_info;
-            alpha = score;
+            move_info = board.last_move;
+            alpha = result_score;
           }
         }
     }
     return alpha;
 }
-using namespace std;
+
 
 void print_board(){
     for(int i = 0; i < 64; ++i){
-        cout << i << ' ';
+        std::cout << i << ' ';
         if((i + 1) % 8 == 0)
-            cout << "\n";
+            std::cout << "\n";
     }
 }
-signed main(){
-    default_file();
-    auto record = parse();
-    Board board; 
-    board.init();
-    // cout << board[8] << '\n';
-    // auto pawn_move = board.get_all_move_pos(8);
-    // std::cout << std::size(pawn_move) << "\n";
-    // for(auto& p : pawn_move)
-    //     cout << p.x << ' ' << p.y << '\n';
 
-    board.simulation(record);
+Board board;
+int cnt_move;
+
+auto run_program(){
     MoveInfo best_move;
+
     auto start = high_resolution_clock::now();
-    alpha_beta(board, -INF, INF, 9, best_move);
+
+    int depth;
+    if(cnt_move % 2 == 0) depth = 7;
+    else depth = 4;
+
+    int res = alpha_beta(board, -INF, INF, depth, best_move);
     auto end = high_resolution_clock::now();
-    auto duration = duration_cast<seconds>(end - start).count(); 
-    std::cout << duration << "s" << "\n";
-    dbg(best_move);
+    auto duration = duration_cast<milliseconds>(end - start).count(); 
+    std::cout << duration << "ms" << "\n";
+
     dbg(best_move.get_command());
-    auto score = board.get_score();
-    dbg(score);
-    // board.change_piece_position(best_move.from, best_move.to);
+    // std::cout << best_move.get_command << '\n';
+
+    board.change_piece_position(best_move.from, best_move.to);
     board.display();
+
+    dbg(board.score);
     dbg(cnt_node);
-    print_board();
+
+    cnt_node = 0;
+    cnt_move++;
+    dbg(cnt_move,depth);
+
+    return board.score;
+}
+
+signed main(){
+//    default_file();
+    auto record = parse();
+    board.init();
+    board.simulation(record);
+    // board.display();
+
+    int result = 0;
+    int cnt = 0;
+    while(abs(result) < 10000){
+       run_program();
+       if(cnt++ >= 100) break;
+    }
+
+    if(result <= -10000)
+        std::cout << "Black win";
+    if(result >= 10000)
+        std::cout << "White win";
+    else 
+        std::cout << "Error";
+
     return 0;
 }
