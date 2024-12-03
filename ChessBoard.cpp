@@ -470,38 +470,38 @@ public:
     }
 };
 
-namespace Attacker{
-    const int pawn[]   = {10, 11, 12, 13, 14, 15, 0};
-    const int knight[] = {20, 21, 22, 23, 24, 25, 0};
-    const int bishop[] = {30, 31, 32, 33, 34, 35, 0};
-    const int rook[]   = {40, 41, 42, 43, 44, 45, 0};
-    const int queen[]  = {50, 51, 52, 53, 54, 55, 0};
-    const int king[]   = {0, 0, 0, 0, 0, 0, 0};
-    const int attacked[][] = {king, queen, rook, bishop, knight, pawn};
-}
+// namespace Attack{
+//     const int pawn[]   = {10, 11, 12, 13, 14, 15, 0};
+//     const int knight[] = {20, 21, 22, 23, 24, 25, 0};
+//     const int bishop[] = {30, 31, 32, 33, 34, 35, 0};
+//     const int rook[]   = {40, 41, 42, 43, 44, 45, 0};
+//     const int queen[]  = {50, 51, 52, 53, 54, 55, 0};
+//     const int king[]   = {0, 0, 0, 0, 0, 0, 0};
+//     const int attacked[][] = {king, queen, rook, bishop, knight, pawn};
+// }
 
-auto get_attack_index(int position){
-    auto absolute_piece_value = abs(board[position]);
-    switch(absolute_piece_value){
-        case King:   return 0;
-        case Queen:  return 1;
-        case Rook:   return 2;
-        case Bishop: return 3;
-        case Knight: return 4;
-        case Pawn:   return 5;
-        default:   
-            return 0;
-    }
-}
+// auto get_attack_index(int position){
+//     auto absolute_piece_value = abs(board[position]);
+//     switch(absolute_piece_value){
+//         case King:   return 0;
+//         case Queen:  return 1;
+//         case Rook:   return 2;
+//         case Bishop: return 3;
+//         case Knight: return 4;
+//         case Pawn:   return 5;
+//         default:   
+//             return 0;
+//     }
+// }
 
-auto get_attack_value(int from, int to){
-    return Attack::attacked[get_attack_index(from)][get_attack_index(to)];
-}
+// auto get_attack_value(int from, int to){
+//     return Attack::attacked[get_attack_index(from)][get_attack_index(to)];
+// }
 
-bool sort_by_attack_value(Board& lhs, Board& rhs){
-    return get_attack_index(u.last_move.from, u.last_move.to) < 
-    return get_attack_index(v.last_move.from, v.last_move.to);
-}
+// bool sort_by_attack_value(Board& lhs, Board& rhs){
+//     return get_attack_value(lhs.last_move.from, lhs.last_move.to) < 
+//            get_attack_value(rhs.last_move.from, rhs.last_move.to);
+// }
 // struct Attack{
 //     int from, to;
 //     Attack(int from, int to): from(from), to(to) {};
@@ -612,19 +612,19 @@ signed main(){
     board.simulation(record);
     // board.display();
 
-    int result = 0;
-    int cnt = 0;
-    while(abs(result) < 10000){
-       run_program();
-       if(cnt++ >= 150) break;
-    }
+    // int result = 0;
+    // int cnt = 0;
+    // while(abs(result) < 10000){
+    //    run_program();
+    //    if(cnt++ >= 150) break;
+    // }
 
-    if(result <= -10000)
-        std::cout << "Black win";
-    if(result >= 10000)
-        std::cout << "White win";
-    else 
-        std::cout << "Error";
-
+    // if(result <= -10000)
+    //     std::cout << "Black win";
+    // if(result >= 10000)
+    //     std::cout << "White win";
+    // else 
+    //     std::cout << "Error";
+    run_program();
     return 0;
 }
