@@ -111,10 +111,8 @@ template<class T, class H>
 std::vector<Point> piece_move(T&& board, H&& direct, Point src_pos, int limit_times) {
     // if limit_times = INF -> unlimited moves 
     std::vector<Point> next_pos;
-    auto tmp = src_pos;
     for(int i = 0; i < std::size(direct); ++i) { 
       Point cur_pos = src_pos + direct[i];
-      assert(tmp == src_pos && src_pos != cur_pos);
       for(int cnt_times = 0; cnt_times < limit_times; ++cnt_times) {
           if(!is_in_board(cur_pos) || is_same_color(board, src_pos, cur_pos)) break;
           next_pos.push_back(cur_pos);
@@ -258,24 +256,15 @@ namespace Evaluate{ // Evaluate by position
         20, 30, 10,  0,  0, 10, 30, 20
     };
     const int empty[64] = {0};
-
-    // const int MVV_LAA = {  
-    //    [0, 0, 0, 0, 0, 0, 0],       // victim K, attacker K, Q, R, B, N, P, None
-    // [50, 51, 52, 53, 54, 55, 0], // victim Q, attacker K, Q, R, B, N, P, None
-    // [40, 41, 42, 43, 44, 45, 0], // victim R, attacker K, Q, R, B, N, P, None
-    // [30, 31, 32, 33, 34, 35, 0], // victim B, attacker K, Q, R, B, N, P, None
-    // [20, 21, 22, 23, 24, 25, 0], // victim N, attacker K, Q, R, B, N, P, None
-    // [10, 11, 12, 13, 14, 15, 0], // victim P, attacker K, Q, R, B, N, P, None
-    // [0, 0, 0, 0, 0, 0, 0],       // victim None, attacker K, Q, R, B, N, P, None
-// ];
 }
+
 
 
 struct MoveInfo{
     int from, to;
     MoveInfo(int from = 0, int to = 0): from(from), to(to) {} 
 
-    MoveInfo& operator=(const MoveInfo& rhs){
+    MoveInfo operator=( MoveInfo rhs){
         from = rhs.from;
         to   = rhs.to;
         return *this;
@@ -308,6 +297,7 @@ public:
   MoveInfo last_move;
   bool     can_castle;
   int      score;
+//   int      attack_score;
   bool     turn;
 
     void init(){
@@ -322,9 +312,10 @@ public:
             500,  305,  310,  900,  10000, 310,  305,  500
         }; 
         memcpy(board, default_value, sizeof(board));
-        can_castle = true;
-        score      = 0;
-        turn       = White;
+        can_castle   = true;
+        score        = 0;
+        // attack_score = 0;
+        turn         = White;
     }
 
     bool is_empty(int position) { return board[position] == Empty; }
@@ -335,17 +326,13 @@ public:
         return turn == White ? score : -score;   
     }
 
-    Board& operator = (Board& rhs){
+    Board operator = (Board rhs){
         memcpy(rhs.board, board, sizeof(board));
         last_move  = rhs.last_move;
         can_castle = rhs.can_castle;
         score      = rhs.score;
         turn       = rhs.turn;
         return *this;
-    }
-
-    bool operator < (const Board& rhs) const{
-        return score < rhs.score;
     }
 
     auto& operator[](int idx){
@@ -412,11 +399,13 @@ public:
             score -= board[to] + base * get_piece_score(evaluate_board_to_pos, to);
         }
 
+        // attack_score    = get_attack_value();
         board[to]       = board[from];
         board[from]     = 0;
         last_move       = MoveInfo(from, to);
         turn ^= 1;
     } 
+
 
     void simulation(std::vector<Point>& command) {
         for(int i = 0; i < command.size(); i += 2){
@@ -470,49 +459,45 @@ public:
     }
 };
 
-// namespace Attack{
-//     const int pawn[]   = {10, 11, 12, 13, 14, 15, 0};
-//     const int knight[] = {20, 21, 22, 23, 24, 25, 0};
-//     const int bishop[] = {30, 31, 32, 33, 34, 35, 0};
-//     const int rook[]   = {40, 41, 42, 43, 44, 45, 0};
-//     const int queen[]  = {50, 51, 52, 53, 54, 55, 0};
-//     const int king[]   = {0, 0, 0, 0, 0, 0, 0};
-//     const int attacked[][] = {king, queen, rook, bishop, knight, pawn};
-// }
+using Group = std::vector<int>;
 
-// auto get_attack_index(int position){
-//     auto absolute_piece_value = abs(board[position]);
-//     switch(absolute_piece_value){
-//         case King:   return 0;
-//         case Queen:  return 1;
-//         case Rook:   return 2;
-//         case Bishop: return 3;
-//         case Knight: return 4;
-//         case Pawn:   return 5;
-//         default:   
-//             return 0;
-//     }
-// }
+// https://rustic-chess.org/search/ordering/mvv_lva.html
+namespace Attack{
+    const Group pawn     = {10, 11, 12, 13, 14, 15, 0};
+    const Group knight   = {20, 21, 22, 23, 24, 25, 0};
+    const Group bishop   = {30, 31, 32, 33, 34, 35, 0};
+    const Group rook     = {40, 41, 42, 43, 44, 45, 0};
+    const Group queen    = {50, 51, 52, 53, 54, 55, 0};
+    const Group king     = { 0,  0,  0,  0,  0,  0, 0};
 
-// auto get_attack_value(int from, int to){
-//     return Attack::attacked[get_attack_index(from)][get_attack_index(to)];
-// }
+    const std::vector attacked = {king, queen, rook, bishop, knight, pawn};
+}
 
-// bool sort_by_attack_value(Board& lhs, Board& rhs){
-//     return get_attack_value(lhs.last_move.from, lhs.last_move.to) < 
-//            get_attack_value(rhs.last_move.from, rhs.last_move.to);
-// }
-// struct Attack{
-//     int from, to;
-//     Attack(int from, int to): from(from), to(to) {};
-//     Attack()
 
-//     Attack& operator = (Attack& rhs){
-//         from = rhs.from;
-//         to   = rhs.to;
-//     }
-    
-// };
+auto get_attack_index(int piece_value){
+    auto absolute_piece_value = abs(piece_value);
+    switch(absolute_piece_value){
+        case King:   return 0;
+        case Queen:  return 1;
+        case Rook:   return 2;
+        case Bishop: return 3;
+        case Knight: return 4;
+        case Pawn:   return 5;
+        default:   
+            return 0;
+    }
+}
+
+int get_attack_value(Board& board, MoveInfo& move_info){
+    int captured_piece_value = board[move_info.from];
+    int attack_piece_value   = board[move_info.to];
+
+    int captured_piece_index = get_attack_index(captured_piece_value);
+    int attack_piece_index   = get_attack_index(attack_piece_value);
+
+    return Attack::attacked[captured_piece_value][attack_piece_value];
+}
+
 
 size_t cnt_node;
 
@@ -532,6 +517,7 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
         return alpha;
     }
   
+    std::vector<MoveInfo> move_list;
 
     for(int from = 0; from < 64; ++from){
         if(examine_board.is_empty(from))
@@ -542,22 +528,29 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
             continue;
 
         std::vector<Point> next_pos = examine_board.get_all_move_pos(from);
-        MoveInfo next_move_info;
 
         for(auto& next : next_pos){
-          Board board = examine_board;
           int to = GetIdx(next);
-          board.change_piece_position(from, to);
-        
-          int result_score = -alpha_beta(board, -beta, -alpha, depth - 1, next_move_info);
-        
-          if(result_score >= beta)
+          move_list.push_back(MoveInfo(from, to));
+        }
+    }
+
+    std::sort(move_list.begin(), move_list.end(), [&](MoveInfo& lhs, MoveInfo& rhs){
+        return get_attack_value(examine_board, lhs) > get_attack_value(examine_board, rhs);
+    });
+
+    MoveInfo next_move_info;
+    for(auto& [from, to] : move_list){
+        Board board = examine_board;
+        board.change_piece_position(from, to);
+        int result_score = -alpha_beta(board, -beta, -alpha, depth - 1, next_move_info);
+
+        if(result_score >= beta)
             return beta;
 
-          if(result_score > alpha){
+        if(result_score > alpha){
             move_info = board.last_move;
             alpha = result_score;
-          }
         }
     }
     return alpha;
@@ -581,9 +574,10 @@ auto run_program(){
     auto start = high_resolution_clock::now();
 
     int depth;
-    if(cnt_move % 2 == 0) depth = 6;
-    else depth = 5;
+    if(cnt_move % 2 == 0) depth = 4;
+    else depth = 3;
 
+    // if(cnt_move >= 110) depth += 2; 
     int res = alpha_beta(board, -INF, INF, depth, best_move);
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end - start).count(); 
@@ -596,7 +590,7 @@ auto run_program(){
     // board.display();
 
     // dbg(board.score);
-    // dbg(cnt_node);
+    dbg(cnt_node);
 
     cnt_node = 0;
     cnt_move++;
@@ -606,18 +600,18 @@ auto run_program(){
 }
 
 signed main(){
-    // default_file( );
+    // default_file();
     auto record = parse();
     board.init();
     board.simulation(record);
     cnt_move += record.size() / 2;
-    // board.display();
+    board.display();
 
     // int result = 0;
     // int cnt = 0;
     // while(abs(result) < 10000){
     //    run_program();
-    //    if(cnt++ >= 150) break;
+    //    if(cnt++ >= 6) break;
     // }
 
     // if(result <= -10000)
@@ -627,5 +621,11 @@ signed main(){
     // else 
     //     std::cout << "Error";
     run_program();
+    // auto x = get_attack_index(King);
+    // auto y = get_attack_index(0);
+    // dbg(Attack::attacked[x][y]);
+    // dbg(get_attack_index(-500));
+    // dbg(get_attack_index(0));
     return 0;
 }
+
