@@ -581,7 +581,7 @@ auto run_program(){
     auto start = high_resolution_clock::now();
 
     int depth;
-    if(cnt_move % 2 == 0) depth = 5;
+    if(cnt_move % 2 == 0) depth = 6;
     else depth = 5;
 
     int res = alpha_beta(board, -INF, INF, depth, best_move);
@@ -606,10 +606,11 @@ auto run_program(){
 }
 
 signed main(){
-    // default_file();
+    // default_file( );
     auto record = parse();
     board.init();
     board.simulation(record);
+    cnt_move += record.size() / 2;
     // board.display();
 
     // int result = 0;
