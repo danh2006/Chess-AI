@@ -165,23 +165,25 @@ std::vector<Point> pawn_move(T&& board, Point position){  // side = 1 if white e
     bool side    = board[GetIdx(position)] > 0 ? White : Black;
     auto nxt_pos = position + Point(side == White ? -1 : 1, 0);
 
-    if(is_in_board(nxt_pos) && board[GetIdx(nxt_pos)] == 0)
+    if(is_in_board(nxt_pos) && board[GetIdx(nxt_pos)] == 0){
         next_pos.push_back(nxt_pos);
-    if(position.x == (side == White ? 6 : 1) &&
-        is_in_board(nxt_pos + Point(side == White ? -1 : 1, 0)) && board[GetIdx(nxt_pos + Point(side == White ? -1 : 1, 0))] == 0)
-        next_pos.push_back(nxt_pos + Point(side == White ? -1 : 1, 0));
+
+        if(position.x == (side == White ? 6 : 1) &&
+            is_in_board(nxt_pos + Point(side == White ? -1 : 1, 0)) && board[GetIdx(nxt_pos + Point(side == White ? -1 : 1, 0))] == 0)
+            next_pos.push_back(nxt_pos + Point(side == White ? -1 : 1, 0));
+    }
 
     auto [x, y] = position;
-    if(side == Black){
-        if(x > 0 && y > 0 && board[GetIdx(x - 1, y - 1)] > 0)
+    if(side == White){
+        if(x > 0 && y > 0 && board[GetIdx(x - 1, y - 1)] < 0)
             next_pos.push_back(Point(x - 1, y - 1));
-        if(x < 7 && y > 0 && board[GetIdx(x + 1, y - 1)] > 0)
-            next_pos.push_back(Point(x + 1, y - 1));
-    }
-    else{
         if(x > 0 && y < 7 && board[GetIdx(x - 1, y + 1)] < 0)
             next_pos.push_back(Point(x - 1, y + 1));
-        if(x < 7 && y < 7 && board[GetIdx(x + 1, y + 1)] < 0)
+    }
+    else{
+        if(x < 7 && y > 0 && board[GetIdx(x + 1, y - 1)] > 0)
+            next_pos.push_back(Point(x - 1, y + 1));
+        if(x < 7 && y < 7 && board[GetIdx(x + 1, y + 1)] > 0)
             next_pos.push_back(Point(x + 1, y + 1));     
     }  
 
@@ -395,19 +397,19 @@ public:
     }
 
     auto change_piece_position(int from, int to){
-        // auto&& evaluate_board_from_pos = get_evaluate_board(from);
-        // auto&& evaluate_board_to_pos   = get_evaluate_board(to);
-        // int   base = is_white(from) ? 1 : -1;
+        auto&& evaluate_board_from_pos = get_evaluate_board(from);
+        auto&& evaluate_board_to_pos   = get_evaluate_board(to);
+        int   base = is_white(from) ? 1 : -1;
         /*
             We imagine white and black have opposite points, 
             so if white is plus then black will be minus, and vice versa.
         */
-        // score += base * (get_piece_score(evaluate_board_from_pos, to) - 
-        //                  get_piece_score(evaluate_board_from_pos, from));
+        score += base * (get_piece_score(evaluate_board_from_pos, to) - 
+                         get_piece_score(evaluate_board_from_pos, from));
         
 
         if(!is_empty(to)){
-            score -= board[to];//+ base * get_piece_score(evaluate_board_to_pos, to);
+            score -= board[to] + base * get_piece_score(evaluate_board_to_pos, to);
         }
 
         board[to]       = board[from];
@@ -468,6 +470,49 @@ public:
     }
 };
 
+namespace Attacker{
+    const int pawn[]   = {10, 11, 12, 13, 14, 15, 0};
+    const int knight[] = {20, 21, 22, 23, 24, 25, 0};
+    const int bishop[] = {30, 31, 32, 33, 34, 35, 0};
+    const int rook[]   = {40, 41, 42, 43, 44, 45, 0};
+    const int queen[]  = {50, 51, 52, 53, 54, 55, 0};
+    const int king[]   = {0, 0, 0, 0, 0, 0, 0};
+    const int attacked[][] = {king, queen, rook, bishop, knight, pawn};
+}
+
+auto get_attack_index(int position){
+    auto absolute_piece_value = abs(board[position]);
+    switch(absolute_piece_value){
+        case King:   return 0;
+        case Queen:  return 1;
+        case Rook:   return 2;
+        case Bishop: return 3;
+        case Knight: return 4;
+        case Pawn:   return 5;
+        default:   
+            return 0;
+    }
+}
+
+auto get_attack_value(int from, int to){
+    return Attack::attacked[get_attack_index(from)][get_attack_index(to)];
+}
+
+bool sort_by_attack_value(Board& lhs, Board& rhs){
+    return get_attack_index(u.last_move.from, u.last_move.to) < 
+    return get_attack_index(v.last_move.from, v.last_move.to);
+}
+// struct Attack{
+//     int from, to;
+//     Attack(int from, int to): from(from), to(to) {};
+//     Attack()
+
+//     Attack& operator = (Attack& rhs){
+//         from = rhs.from;
+//         to   = rhs.to;
+//     }
+    
+// };
 
 size_t cnt_node;
 
@@ -536,32 +581,32 @@ auto run_program(){
     auto start = high_resolution_clock::now();
 
     int depth;
-    if(cnt_move % 2 == 0) depth = 7;
-    else depth = 4;
+    if(cnt_move % 2 == 0) depth = 5;
+    else depth = 5;
 
     int res = alpha_beta(board, -INF, INF, depth, best_move);
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end - start).count(); 
     std::cout << duration << "ms" << "\n";
 
-    dbg(best_move.get_command());
-    // std::cout << best_move.get_command << '\n';
+    // dbg(best_move.get_command());
+    std::cout << best_move.get_command() << '\n';
 
     board.change_piece_position(best_move.from, best_move.to);
-    board.display();
+    // board.display();
 
-    dbg(board.score);
-    dbg(cnt_node);
+    // dbg(board.score);
+    // dbg(cnt_node);
 
     cnt_node = 0;
     cnt_move++;
-    dbg(cnt_move,depth);
+    // dbg(cnt_move,depth);
 
     return board.score;
 }
 
 signed main(){
-//    default_file();
+    // default_file();
     auto record = parse();
     board.init();
     board.simulation(record);
@@ -571,7 +616,7 @@ signed main(){
     int cnt = 0;
     while(abs(result) < 10000){
        run_program();
-       if(cnt++ >= 100) break;
+       if(cnt++ >= 150) break;
     }
 
     if(result <= -10000)
