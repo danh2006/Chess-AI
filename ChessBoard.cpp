@@ -7,7 +7,7 @@
 
 using namespace std::chrono;
    
-#define default_file() freopen("C:\\Users\\DUC ANH\\Downloads\\Gen\\default\\input.in", "r", stdin);  freopen("C:\\Users\\DUC ANH\\Downloads\\Gen\\default\\output.out", "w", stdout); 
+#define default_file() freopen("C:\\Users\\DUC ANH\\Downloads\\Gen\\default\\input.in", "r", stdin);  freopen("C:\\Users\\DUC ANH\\Downloads\\Gen\\default\\output.out ", "w", stdout); 
 
 template<class... T> void debug(T&&... t){ 
     int x = sizeof...(t); 
@@ -15,7 +15,7 @@ template<class... T> void debug(T&&... t){
 }
 bool debug_flag = false;
 bool error_flag = true;
-
+                                                
 
 
 #define dbg(...) std::cout << "LINE(" << __LINE__ << ") : [" << #__VA_ARGS__ << "] = [", debug(__VA_ARGS__)
@@ -29,35 +29,6 @@ void mes_error(T&& t){
     assert(false);
 }
 
-// enum Direct{
-
-// }
-// #define int int16_t
-
-struct Point{
-    int16_t x, y;
-    Point(int16_t x, int16_t y): x(x), y(y) {}
-    Point operator-(const Point p){ return Point(x - p.x, y - p.y); }
-    Point operator+(const Point p){ return Point(x + p.x, y + p.y); }
-    Point operator-=(const Point p){ x -= p.x, y -= p.y; return *this; }
-    Point operator+=(const Point p){ x += p.x, y += p.y; return *this; }
-    bool  operator==(const Point p) const { return x == p.x && y == p.y; }
-    bool  operator!=(const Point p) const { return !(*this == p); }
-    friend std::istream& operator>>(std::istream& is, Point& p){
-        is >> p.x >> p.y;
-        return is;
-    }
-    friend std::ostream& operator<<(std::ostream& os, const Point p){
-        os << p.x << ' ' << p.y << "\n";
-        return os;
-    }
-};
-
-
-auto GetIdx(int16_t x, int16_t y){
-    return (x << 3) + y; 
-}
-auto GetIdx(const Point& p){ return GetIdx(p.x, p.y); }
 
 
 const int INF = 10000000;
@@ -72,24 +43,26 @@ std::string encode(int16_t position){
 }
 
 
-std::vector<Point> parse(){
-    std::vector<Point> record;
+std::vector<int16_t> parse(){
+    std::vector<int16_t> record;
     std::string input;
     while(std::getline(std::cin, input)){
         if(input == "END") break;
         assert(input[2] == ' ');
-        record.push_back(Point(8 - int(input[1] - '0'), int(input[0] - 'a')));
-        record.push_back(Point(8 - int(input[4] - '0'), int(input[3] - 'a')));
+        auto from = (8 - int(input[1] - '0')) * 8 +  int(input[0] - 'a');
+        auto to   = (8 - int(input[4] - '0')) * 8 +  int(input[3] - 'a');
+        record.emplace_back(from);
+        record.emplace_back(to);
     }
     return record;
 }
 
 enum ChessPieceValue{
     Pawn   = 100,
-    Knight = 310,
-    Bishop = 320, 
+    Knight = 320,
+    Bishop = 325, 
     Rook   = 500,
-    Queen  = 900, 
+    Queen  = 950, 
     King   = 10000,
     Empty = 0
 };
@@ -99,103 +72,134 @@ enum Color{
   Black = 0
 };
 
-bool is_in_board(const Point& position){
-    return position.x >= 0 && position.x <= 7 && 
-           position.y >= 0 && position.y <= 7; 
-}
 
-template<class T>
-bool is_same_color(T&& board, Point& src, Point& dst){
-  const auto src_value = board[GetIdx(src)];
-  const auto dst_value = board[GetIdx(dst)];
-  return (src_value < 0 && dst_value < 0) || 
-         (src_value > 0 && dst_value > 0);
+
+void set_direct_index(int16_t direct, int16_t& dx, int16_t& dy){
+    switch(direct){
+        case -17: dx = -2, dy = -1; break;
+        case -15: dx = -2, dy =  1; break;
+        case -10: dx = -1, dy = -2; break;
+        case  -6: dx = -1, dy =  2; break;
+        case   6: dx =  1, dy = -2; break;
+        case  10: dx =  1, dy =  2; break;
+        case  15: dx =  2, dy = -1; break;
+        case  17: dx =  2, dy =  1; break;
+        case  -9: dx = -1, dy = -1; break;
+        case  -8: dx = -1, dy =  0; break;
+        case  -7: dx = -1, dy =  1; break;
+        case  -1: dx =  0, dy = -1; break;
+        case   1: dx =  0, dy =  1; break;
+        case   7: dx =  1, dy = -1; break;
+        case   8: dx =  1, dy =  0; break;
+        case   9: dx =  1, dy =  1; break;
+    }
 }
 
 
 template<class T, class H> 
-std::vector<Point> piece_move(T&& board, H&& direct, Point& src_pos, int limit_times) {
-    // if limit_times = INF -> unlimited moves 
-    std::vector<Point> next_pos;
-    next_pos.reserve(limit_times == 1 ? 3 : 7);
+std::vector<int16_t> piece_move(T&& board, H&& direct, int16_t src_pos, int max_times) {
+    std::vector<int16_t> move_position;
+    move_position.reserve(max_times == 1 ? 3 : 7);
 
-    for(int i = 0; i < std::size(direct); ++i) { 
-      Point cur_pos = src_pos + direct[i];
-      for(int cnt_times = 0; cnt_times < limit_times; ++cnt_times) {
-          if(!is_in_board(cur_pos) || is_same_color(board, src_pos, cur_pos)) break;
-          next_pos.emplace_back(cur_pos); //cnt++;
-          if(board[GetIdx(cur_pos)] != 0) break;
-          cur_pos += direct[i];
-      }
+    const int16_t src_row = src_pos >> 3;
+    const int16_t src_col = src_pos & 7;
+    
+    for(int i = 0; i < std::size(direct); ++i){
+        int16_t dx, dy;
+        set_direct_index(direct[i], dx, dy);
+
+        int16_t position = src_pos;
+        int16_t cur_row  = src_row;
+        int16_t cur_col  = src_col;
+
+        position += direct[i]; 
+        cur_row  += dx;
+        cur_col  += dy;
+
+        for(int cnt_times = 1; cnt_times <= max_times; ++cnt_times){
+            if(!(cur_row >= 0 && cur_row <= 7 && cur_col >= 0 && cur_col <= 7))
+                break;
+
+            if(board[position] != 0){
+                if((board[position] > 0 && board[src_pos] > 0) || (board[position] < 0 && board[src_pos] < 0))
+                    break;
+                move_position.emplace_back(position);
+                break;
+            }else{
+                move_position.emplace_back(position);
+                position += direct[i];
+                cur_row  += dx;
+                cur_col  += dy;
+            }
+        }
     }
-    return next_pos;
+    return move_position;
 }
 
 template<class T> 
-std::vector<Point> king_move(T&& board, Point position){
-    static const Point direct[] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, 
-                             {0, 1}, {1, -1}, {1, 0}, {1, 1}};
+std::vector<int16_t> king_move(T&& board, int16_t position){
+    static const int16_t direct[] = {-9, -8, -7, -1, 1, 7, 8, 9};
     return piece_move(board, direct, position, 1);
 }
 
 template<class T> 
-std::vector<Point> queen_move(T&& board, Point position){
-    static const Point direct[] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, 
-                            {0, 1}, {1, -1}, {1, 0}, {1, 1}};
+std::vector<int16_t> queen_move(T&& board, int16_t position){
+    static const int16_t direct[] = {-9, -8, -7, -1, 1, 7, 8, 9};
     return piece_move(board, direct, position, INF);
 }
 
 template<class T> 
-std::vector<Point> rook_move(T&& board, Point position){
-    static const Point direct[] = {{-1, 0}, {0, -1}, {0, 1}, {1, 0}};
+std::vector<int16_t> rook_move(T&& board, int16_t position){
+    static const int16_t direct[] = {-8, -1, 1, 8};
     return piece_move(board, direct, position, INF);
 }
 
 template<class T> 
-std::vector<Point> knight_move(T&& board, Point position){
-    static const Point direct[] = {{-2, -1}, {-1, -2}, {-2, 1}, {-1, 2},
-                                   {2, -1}, {1, -2}, {2, 1}, {1, 2}};
+std::vector<int16_t> knight_move(T&& board, int16_t position){
+    static const int16_t direct[] = {-17, -15, -10, -6, 10, 17, 15, 6};
     return piece_move(board, direct, position, 1);
 }
 
 
 template<class T> 
-std::vector<Point> bishop_move(T&& board, Point position){
-    static const Point direct[] = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+std::vector<int16_t> bishop_move(T&& board, int16_t position){
+    static const int16_t direct[] = {-9, -7, 7, 9};
     return piece_move(board, direct, position, INF);
 }
 
 template<class T>
-std::vector<Point> pawn_move(T&& board, Point position){  // side = 1 if white else black
-    std::vector<Point> next_pos;
-    bool side    = board[GetIdx(position)] > 0 ? White : Black;
-    auto nxt_pos = position + Point(side == White ? -1 : 1, 0);
+std::vector<int16_t> pawn_move(T&& board, int16_t position){  // side = 1 if white else black
+    std::vector<int16_t> move_position;
+    bool side = board[position] > 0 ? White : Black;
+    const int row = position / 8;
+    const int col = position % 8;
 
-    if(is_in_board(nxt_pos) && board[GetIdx(nxt_pos)] == 0){
-        next_pos.push_back(nxt_pos);
-
-        if(position.x == (side == White ? 6 : 1) &&
-            is_in_board(nxt_pos + Point(side == White ? -1 : 1, 0)) && board[GetIdx(nxt_pos + Point(side == White ? -1 : 1, 0))] == 0)
-            next_pos.push_back(nxt_pos + Point(side == White ? -1 : 1, 0));
-    }
-
-    auto [x, y] = position;
     if(side == White){
-        if(x > 0 && y > 0 && board[GetIdx(x - 1, y - 1)] < 0)
-            next_pos.push_back(Point(x - 1, y - 1));
-        if(x > 0 && y < 7 && board[GetIdx(x - 1, y + 1)] < 0)
-            next_pos.push_back(Point(x - 1, y + 1));
+        if(position >= 8 && board[position - 8] == 0){
+            move_position.emplace_back(position - 8);
+            if(row == 6 && board[position - 16] == 0){
+                move_position.emplace_back(position - 16);
+            }
+        }
+        if(row > 0 && col > 0 && board[position - 9] < 0)
+            move_position.emplace_back(position - 9);
+        if(row > 0 && col < 7 && board[position - 7] < 0)
+            move_position.emplace_back(position - 7);
     }
-    else{
-        if(x < 7 && y > 0 && board[GetIdx(x + 1, y - 1)] > 0)
-            next_pos.push_back(Point(x + 1, y - 1));
-        if(x < 7 && y < 7 && board[GetIdx(x + 1, y + 1)] > 0)
-            next_pos.push_back(Point(x + 1, y + 1));     
-    }  
-
-    return next_pos;
+    else{ 
+        if(position <= 55 && board[position + 8] == 0){
+            move_position.emplace_back(position + 8);
+            if(row == 1 && board[position + 16] == 0){
+                move_position.emplace_back(position + 16);
+            }
+        }
+        if(row < 7 && col > 0 && board[position + 7] > 0)
+            move_position.emplace_back(position + 7);
+        if(row < 7 && col < 7 && board[position + 9] > 0)
+            move_position.emplace_back(position + 9);
+    }
+    return move_position;
 }
-
 
 namespace Evaluate{ // Evaluate by position
     const int16_t pawn[64] = {
@@ -348,14 +352,14 @@ public:
 
     void init(){
         const int16_t default_value[64] = {
-            -500, -310, -320, -900, -10000, -320, -310, -500,
+            -500, -320, -325, -950, -10000, -325, -320, -500,
             -100, -100, -100, -100, -100, -100, -100, -100,
                 0,   0,     0,   0,    0,    0,    0,    0,
                 0,   0,     0,   0,    0,    0,    0,    0,
                 0,   0,     0,   0,    0,    0,    0,    0,
                 0,   0,     0,   0,    0,    0,    0,    0,
             100,  100,  100,  100,  100,  100,  100,  100,
-            500,  310,  320,  900,  10000, 320,  310,  500
+            500,  320,  325,  950,  10000, 325,  320,  500
         }; 
         memcpy(board, default_value, sizeof(board));
         // n_pieces[0]  = 16;
@@ -401,22 +405,19 @@ public:
     }
 
 
-    std::vector<Point> get_all_move_pos(int16_t position){
+    std::vector<int16_t> get_all_move_pos(int16_t position){
         const int16_t absolute_piece_value = abs(board[position]);
-        const int16_t row = position / 8 , col = position % 8;
-        const Point point(row, col);
-        
         switch(absolute_piece_value){
-            case King:   return king_move(board, point);
-            case Queen:  return queen_move(board, point);
-            case Rook:   return rook_move(board, point);
-            case Knight: return knight_move(board, point);
-            case Bishop: return bishop_move(board, point);
-            case Pawn:   return pawn_move(board, point);
+            case King:   return king_move(board, position);
+            case Queen:  return queen_move(board, position);
+            case Rook:   return rook_move(board, position);
+            case Knight: return knight_move(board, position);
+            case Bishop: return bishop_move(board, position);
+            case Pawn:   return pawn_move(board, position);
             default:
                 mes_error("There are no pieces in this position.");
         }
-        return std::vector<Point>{};
+        return std::vector<int16_t>{};
     }
 
     auto& get_evaluate_board(int16_t position){
@@ -467,8 +468,8 @@ public:
     }
 
     auto get_attack_value(const MoveInfo& move_info){
-        auto captured_piece_value = board[move_info.from];
-        auto attack_piece_value   = board[move_info.to];
+        auto captured_piece_value = board[move_info.to];
+        auto attack_piece_value   = board[move_info.from];
 
         return Attack::attacked[get_attack_index(captured_piece_value)][get_attack_index(attack_piece_value)];
     }
@@ -482,11 +483,10 @@ public:
         turn ^= 1;
     } 
 
-
-    void simulation(std::vector<Point>& command) {
+    void simulation(std::vector<int16_t>& command) {
         for(int i = 0; i < command.size(); i += 2){
-            auto from  = GetIdx(command[i]);
-            auto to    = GetIdx(command[i + 1]);
+            auto from  = command[i];
+            auto to    = command[i + 1];
 
             if((turn == White && is_black(from)) || (turn == Black && is_white(from)))
                 mes_error("Invalid move");
@@ -546,7 +546,7 @@ auto get_depth(int depth, int possible_move){
 
 
 auto Quiescence(Board& examine_board, int alpha, int beta, int depth){
-    int  score = examine_board.get_score();
+    int  score = examine_board.score;
     bool turn  = examine_board.turn;
     cnt_node++;
 
@@ -570,10 +570,9 @@ auto Quiescence(Board& examine_board, int alpha, int beta, int depth){
             (turn == Black && examine_board.is_white(from)))
                 continue;
 
-            const std::vector<Point> next_pos = examine_board.get_all_move_pos(from);
+            const std::vector<int16_t> move_position = examine_board.get_all_move_pos(from);
 
-            for(auto& next : next_pos){
-                int to = GetIdx(next);
+            for(auto& to : move_position){
                 if(examine_board[to] != 0){
                     move_list.emplace_back(from, to);
                 }
@@ -602,8 +601,7 @@ auto Quiescence(Board& examine_board, int alpha, int beta, int depth){
 
 
 auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& move_info, bool extended){
-    int16_t score = examine_board.get_score();
-    bool    turn  = examine_board.turn;
+    bool turn  = examine_board.turn;
     cnt_node++;
 
     // if(depth == 0){
@@ -611,7 +609,7 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
     //         extended = true,
     //         depth   += 1;
     //     else
-    //         return Quiescence(examine_board, alpha, beta, 3);
+    //         return Quiescence(examine_board, alpha, beta, 2);
     // }
 
     if(depth == 0 || examine_board.score >= 5000){
@@ -619,6 +617,11 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
         return alpha;
     }
 
+    std::vector<MoveInfo> move_list;
+    std::vector<int16_t> move_pos_list[64]; 
+    move_list.reserve(30);
+
+    MoveInfo next_move_info;
     for(int from = 0; from < 64; ++from){
         if(examine_board.is_empty(from))
             continue;
@@ -627,11 +630,35 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
            (turn == Black && examine_board.is_white(from)))
             continue;
 
-        const std::vector<Point> next_pos = examine_board.get_all_move_pos(from);
+        move_pos_list[from] = examine_board.get_all_move_pos(from);
 
-        MoveInfo next_move_info;
-        for(auto& next : next_pos){
-            int to = GetIdx(next);
+        for(auto& to : move_pos_list[from]){
+            if(examine_board[to] != 0)
+                move_list.emplace_back(from, to);
+        }
+    }
+
+    std::sort(move_list.begin(), move_list.end(), [&](MoveInfo& lhs, MoveInfo& rhs){
+        return examine_board.get_attack_value(lhs) > examine_board.get_attack_value(rhs);
+    });
+
+    for(auto& [from, to] : move_list){
+        Board board = examine_board;
+        board.change_piece_position(from, to);
+        int result_score = -alpha_beta(board, -beta, -alpha, depth - 1, next_move_info, extended);
+
+        if(result_score >= beta)
+            return beta;
+
+        if(result_score > alpha){
+            move_info = board.last_move;
+            alpha = result_score;
+        }
+    }
+
+    for(int from = 0; from < 64; ++from){
+        for(auto& to : move_pos_list[from]){
+            if(examine_board[to] != 0) continue;
             Board board = examine_board;
             board.change_piece_position(from, to);
             int result_score = -alpha_beta(board, -beta, -alpha, depth - 1, next_move_info, extended);
@@ -649,14 +676,6 @@ auto alpha_beta(Board& examine_board, int alpha, int beta, int depth, MoveInfo& 
 }
 
 
-void print_board(){
-    for(int i = 0; i < 64; ++i){
-        std::cout << i << ' ';
-        if((i + 1) % 8 == 0)
-            std::cout << "\n";
-    }
-}
-
 Board board;
 int cnt_move;
 
@@ -666,10 +685,9 @@ auto run_program(){
     auto start = high_resolution_clock::now();
 
     int depth;
-    if(cnt_move % 2 == 0) depth = 6, dbg("6");
-    else depth = 7, dbg("7");
+    if(cnt_move % 2 == 0) depth = 6;
+    else depth = 7;
 
-    // depth += 2; 
 
     int res = alpha_beta(board, -INF, INF, depth, best_move, false);
     auto end = high_resolution_clock::now();
@@ -678,11 +696,11 @@ auto run_program(){
     std::cout << (cnt_move % 2 == 0 ? "White" : "Black") << "\n";
     std::cout << duration << "ms" << "\n";
 
-    // dbg(best_move.get_command());
+
     std::cout << best_move.get_command() << "\n";
 
     board.change_piece_position(best_move.from, best_move.to);
-    // board.display();
+    board.display();
 
     // dbg(cnt_node);
 
@@ -694,17 +712,18 @@ auto run_program(){
 }
 
 signed main(){
-    default_file();
+    // default_file();
     auto record = parse();
     board.init();
     board.simulation(record);
     cnt_move += record.size() / 2;
+    // board.display();
 
     // int result = 0;
     // int cnt = 0;
     // while(abs(result) < 5000){
     //    result = run_program();
-    //    if(cnt++ >= 10) break;
+    //    if(cnt++ >= 20) break;
     // }
 
     // if(result <= -10000){
@@ -716,6 +735,7 @@ signed main(){
     // else 
     //     std::cout << "Error";
     run_program();
+
     return 0;
 }
 
