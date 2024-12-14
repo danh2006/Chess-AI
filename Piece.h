@@ -1,41 +1,81 @@
-
-#include <iostream>
-#include <vector>
-#include <string>
-#include <cassert>
 #include <cstdint>
+#include <string>
+#include <cmath>
+#include <stdexcept>
 
 
-std::string encode(int16_t position){
-    int x = position / 8, y = position % 8;
-    x = 7 - x;
-    std::string ret_str;
-    ret_str += char(y + 'a');
-    ret_str += char(x + 1 + '0');
-    return ret_str;
+enum ChessPieceValue{
+    Pawn   = 100,
+    Knight = 320,
+    Bishop = 325, 
+    Rook   = 500,
+    Queen  = 950, 
+    King   = 10000,
+    Empty  = 0
+};
+
+int16_t get_piece_index(int piece_value) {
+     int absolute_piece_value = std::abs(piece_value);
+     switch (absolute_piece_value) {
+          case Pawn:   return 5;
+          case Knight: return 4;
+          case Bishop: return 3;
+          case Rook:   return 2;
+          case Queen:  return 1;
+          case King:   return 0;
+     }
+     return 0;
 }
 
+std::string get_piece_unicode_symbol(int16_t piece_value) {
+     int absolute_piece_value = std::abs(piece_value);
+     switch (absolute_piece_value) {
+          case King:   return "♚";
+          case Queen:  return "♛";
+          case Rook:   return "♜";
+          case Knight: return "♞";
+          case Bishop: return "♝";
+          case Pawn:   return "♟";
+          case Empty:  return "♢ ";
+          default:     
+               throw std::invalid_argument("Unsupported piece value");
+     }
+}
 
-std::vector<int16_t> parse(){
-    std::vector<int16_t> record;
-    std::string input;
-    while(std::getline(std::cin, input)){
-        if(input == "END") break;
-        // assert(input[2] == ' ');
-        if(input == "O-O"){
-            record.emplace_back(-1);
-            record.emplace_back(-1);
-            continue;
-        }
-        if(input == "O-O-O"){
-            record.emplace_back(-2);
-            record.emplace_back(-2);
-            continue;
-        }
-        auto from = (8 - int(input[1] - '0')) * 8 +  int(input[0] - 'a');
-        auto to   = (8 - int(input[4] - '0')) * 8 +  int(input[3] - 'a');
-        record.emplace_back(from);
-        record.emplace_back(to);
-    }
-    return record;
+std::string get_piece_symbol(int piece_value) {
+     switch (piece_value) {
+          case Pawn:   return "P";
+          case -Pawn:  return "p";
+          case Knight: return "N";
+          case -Knight:return "n";
+          case Bishop: return "B";
+          case -Bishop:return "b";
+          case Rook:   return "R";
+          case -Rook:  return "r";
+          case Queen:  return "Q";
+          case -Queen: return "q";
+          case King:   return "K";
+          case -King:  return "k";
+          default:     
+               throw std::invalid_argument("Unsupported piece value");
+     }
+}
+
+int16_t get_piece_value_by_symbol(char piece_symbol) {
+     switch (piece_symbol) {
+          case 'P': return Pawn;
+          case 'p': return -Pawn;
+          case 'N': return Knight;
+          case 'n': return -Knight;
+          case 'B': return Bishop;
+          case 'b': return -Bishop;
+          case 'R': return Rook;
+          case 'r': return -Rook;
+          case 'Q': return Queen;
+          case 'q': return -Queen;
+          case 'K': return King;
+          case 'k': return -King;
+          default:  
+               throw std::invalid_argument("Unsupported piece symbol");
+     }
 }
