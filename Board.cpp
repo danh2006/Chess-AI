@@ -84,11 +84,11 @@
         return board[idx];
     }
 
-    bool is_promotion = false;
     bool Board::can_promotion(int16_t from, int16_t to) {
-        int16_t promotion_row = side == White ? 7 : 0;
-        int16_t cur_row = to / 8;
-        return board[from] == Pawn && cur_row == promotion_row;
+        const int16_t promotion_row = side == White ? 7 : 0;
+        const int16_t cur_row = to >> 3;
+        auto base = side == White ? 1 : -1;
+        return board[from] == base * Pawn && cur_row == promotion_row;
     }
 
     bool Board::is_valid_move(int16_t position){
@@ -125,6 +125,7 @@
         cnt_move += 1;
         side ^= 1;
     }
+
     void Board::kingside_castle(){
         auto king_position = side == White ? 60 : 4;
         auto rook_position = side == White ? 63 : 7;
@@ -135,6 +136,7 @@
         board[rook_position] = Empty;
         score += side == White ? 40 : -40;
         Board::update_move_info();
+        hash_value ^= castling_values[side][Kingside];
     }
 
     void Board::queenside_castle(){
@@ -147,10 +149,11 @@
         board[rook_position] = Empty;
         score += side == White ? 40 : -40;  
         Board::update_move_info();
+        hash_value ^= castling_values[side][Queenside];
     }
 
     void Board::set_castled() {
-        if(side == White)
+        if(side == Black)
             white_can_kingside_castle = false,
             white_can_queenside_castle = false;
         else
@@ -169,12 +172,12 @@
     std::vector<int16_t> Board::get_all_move_pos(int16_t position) {
         const int16_t absolute_piece_value = abs(board[position]);
         switch (absolute_piece_value) {
-            case King:   return king_move(board, position);
-            case Queen:  return queen_move(board, position);
-            case Rook:   return rook_move(board, position);
+            case Pawn:   return pawn_move(board, position);
             case Knight: return knight_move(board, position);
             case Bishop: return bishop_move(board, position);
-            case Pawn:   return pawn_move(board, position);
+            case Rook:   return rook_move(board, position);
+            case Queen:  return queen_move(board, position);
+            case King:   return king_move(board, position);
             default:
                 mes_error("There are no pieces in this position.");
         }
@@ -184,14 +187,14 @@
     auto& Board::get_evaluate_board(int16_t position) {
         auto absolute_piece_value = abs(board[position]);
         switch (absolute_piece_value) {
-        case King:   return Evaluate::king;
-        case Queen:  return Evaluate::queen;
-        case Rook:   return Evaluate::rook;
-        case Bishop: return Evaluate::bishop;
-        case Knight: return Evaluate::knight;
-        case Pawn:   return Evaluate::pawn;
-        default:
-            return Evaluate::empty;
+            case Pawn:   return Evaluate::pawn;
+            case Knight: return Evaluate::knight;
+            case Bishop: return Evaluate::bishop;
+            case Rook:   return Evaluate::rook;
+            case Queen:  return Evaluate::queen;
+            case King:   return Evaluate::king;
+            default:
+                return Evaluate::empty;
         }
     }
 
@@ -206,7 +209,7 @@
         hash_value ^= piece_values[side][get_piece_index(board[from])][from];
         hash_value ^= piece_values[side][get_piece_index(board[from])][to];
 
-        if (!is_empty(to)) {
+        if (board[to] != 0) {
             evaluate   -= board[to] + base * get_piece_score(evaluate_board_to_pos, to);
             hash_value ^= piece_values[!side][get_piece_index(board[to])][to];
         } 
@@ -237,18 +240,17 @@
     /**
     * @brief Changes the position of a piece on the board.
     */
-    void Board::change_piece_position(int16_t from, int16_t to) {
+    void Board::change_piece_position(int16_t from, int16_t to) {   
         score += evaluate_score(from, to);
 
         // castle check king or rook move, if move, set castle info is false
         change_castle_info(from);
         
-        if (can_promotion(from, to)) {
-            auto base = side == White ? 1 : -1;
+        if (can_promotion(from, to)) { 
+            int16_t base = side == White ? 1 : -1;
             score += base * get_piece_score(Evaluate::queen, to);
             score += base * (Queen - Pawn);
             board[to] = base * Queen;
-            is_promotion = true;
         }
         else {
             board[to] = board[from];
@@ -263,6 +265,14 @@
         for (int i = 0; i < command.size(); i += 2) {
             auto from = command[i];
             auto to   = command[i + 1];
+            if(from == -1) {
+                kingside_castle(); set_castled();
+                continue;
+            }
+            if(from == -2) {
+                queenside_castle(); set_castled();
+                continue;
+            }
 
             if (!is_valid_move(from)) mes_error("Invalid move");
 
