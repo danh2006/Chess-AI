@@ -19,6 +19,8 @@ struct MoveInfo{
     bool operator > (const MoveInfo& rhs) const{ return score > rhs.score; }
 
     std::string get_command(){
+        if(from == -1) return "O-O";
+        if(from == -2) return "O-O-O";
         auto start_pos = encode(from);
         auto end_pos   = encode(to);
         std::string command = start_pos + " " + end_pos;
