@@ -21,7 +21,17 @@ std::vector<int16_t> parse(){
     std::string input;
     while(std::getline(std::cin, input)){
         if(input == "END") break;
-        assert(input[2] == ' ');
+        // assert(input[2] == ' ');
+        if(input == "O-O"){
+            record.emplace_back(-1);
+            record.emplace_back(-1);
+            continue;
+        }
+        if(input == "O-O-O"){
+            record.emplace_back(-2);
+            record.emplace_back(-2);
+            continue;
+        }
         auto from = (8 - int(input[1] - '0')) * 8 +  int(input[0] - 'a');
         auto to   = (8 - int(input[4] - '0')) * 8 +  int(input[3] - 'a');
         record.emplace_back(from);
