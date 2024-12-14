@@ -1,11 +1,11 @@
-# Chess-AI
+# Emilye 
 A Chess Engine Enhanced with Transposition Tables, Killer Heuristic, MVV-LVA, PST, Alpha-Beta Pruning, Quiescence Search.
 
 ## Strength
 I haven't had a chance to test the chess engine's power using objective measures, but I believe the engine has a power ranging around 1400 to 1500 elo.
 
 ## How to use the engine
-The Universal Chess Interface (UCI) is a standard protocol used to communicate with a chess engine, and is the recommended way to do so for typical graphical user interfaces (GUI) or chess tools. Alexandria implements the majority of its options as described in the UCI protocol.
+The Universal Chess Interface (UCI) is a standard protocol used to communicate with a chess engine, and is the recommended way to do so for typical graphical user interfaces (GUI) or chess tools. Emilye implements the majority of its options as described in the UCI protocol.
 
 ## Todo List
 - Added a 3-move draw rule and fixed the checkmate error
